@@ -1,138 +1,223 @@
-cat quicket.py
+from copy import deepcopy
 import Tkinter
 
-class RoundCounter(object):
-  def __init__(self, num_players):
-     self.turn = 0
-     self.round = 1
-     self.num_players = num_players
+tk = Tkinter.Tk()
+tk['width'] = 800
+tk['height'] = 600
 
-  def player(self):
-     return self.turn % self.num_players
-
-  def nextTurn(self):
-     self.turn += 1
-     self.round = 1 + self.turn / self.num_players
+tk.option_add("*Font", "helvetica 50 bold")
+tk.option_add("*Label.Font", "helvetica 50 bold")
+tk.option_add("*Background", "white")
+tk.config(background="white")
 
 
-def score(scoring_matrix, display_matrix, score_list, player_int, number):
-  if (scoring_matrix[number][player_int]):
-     scoring_matrix[number][player_int] = False
-     display_matrix[number][player_int].set('X')
-     return
-
-  for i in range(len(score_list)):
-     if (scoring_matrix[number][i]):
-        score_list[i].set(score_list[i].get() + number)
-
-if __name__ == "__main__":
-
-  name = list()
-  num_players = int(raw_input("Number of Players:>"))
-  round = RoundCounter(num_players)
+# helper function for reduce
+def smaller(a, b):
+    if ( a > b):
+       return b
+    else:
+       return a
 
 
-  for i in range(num_players):
-     name.append(raw_input("Player %d name:" % i))
+class Player(object):
+    def __init__(self, name, toClose):
+        self.name = name
+        self.closed = dict(map(lambda n: (n, False), range(15,21)))
+        self.closed[25] = False
+        self.remaining = dict(map(lambda n: (n, toClose), self.closed.keys()))
+        self.points = 0
+        self.glyph = [ 'O', 'X', '/', ' ' ]
+        if (toClose < 3):
+           del self.glyph[toClose:3]
 
-  tk = Tkinter.Tk()
-  tk.option_add("*Font", "helvetica 50 bold")
-  tk.option_add("*Label.Font", "helvetica 50 bold")
-  tk.option_add("*Background", "white")
-  tk.config(background="white")
+    def mark(self, num):
+        if self.closed[num]:
+           return True
+        self.remaining[num] -= 1
+        if self.remaining[num] == 0:
+           self.closed[num] = True
+        return False
 
-  points = map( lambda x: Tkinter.IntVar(), name)
-  is_open = dict()
-  display_matrix = dict() 
+    def __getitem__(self, x):
+        return self.glyph[self.remaining[x]]
 
-  is_open[20] = map( lambda x: True, name )
-  display_matrix[20] = map( lambda x: Tkinter.StringVar(value=' '), name)
+    def point(self, num):
+        if not self.closed[num]:
+           self.points += num
 
-  is_open[19] = map( lambda x: True, name )
-  display_matrix[19] = map( lambda x: Tkinter.StringVar(value=' '), name)
+    def savepoint(self):
+        closed = map(lambda n: self.closed[n], [ 20, 19, 18, 17, 16, 15, 25])
+        remaining = map(lambda n: self.remaining[n], [ 20, 19, 18, 17, 16, 15, 25])
+        return (closed, remaining, self.points)
 
-  is_open[18] = map( lambda x: True, name )
-  display_matrix[18] = map( lambda x: Tkinter.StringVar(value=' '), name)
+    def rollback(self, closed, remaining, points):
+        self.closed[20] = closed[0]
+        self.closed[19] = closed[1]
+        self.closed[18] = closed[2]
+        self.closed[17] = closed[3]
+        self.closed[16] = closed[4]
+        self.closed[15] = closed[5]
+        self.closed[25] = closed[6]
+        self.remaining[20] = remaining[0]
+        self.remaining[19] = remaining[1]
+        self.remaining[18] = remaining[2]
+        self.remaining[17] = remaining[3]
+        self.remaining[16] = remaining[4]
+        self.remaining[15] = remaining[5]
+        self.remaining[25] = remaining[6]
+        self.points = points
 
-  is_open[17] = map( lambda x: True, name )
-  display_matrix[17] = map( lambda x: Tkinter.StringVar(value=' '), name)
+    def getScore(self):
+        return self.points
 
-  is_open[16] = map( lambda x: True, name )
-  display_matrix[16] = map( lambda x: Tkinter.StringVar(value=' '), name)
-
-  is_open[15] = map( lambda x: True, name )
-  display_matrix[15] = map( lambda x: Tkinter.StringVar(value=' '), name)
-
-  is_open[25] = map( lambda x: True, name )
-  display_matrix[25] = map( lambda x: Tkinter.StringVar(value=' '), name)
-  players = list()
-
-  def onKeyPress(event):
-     if  event.char  == '2':
-        score(is_open, display_matrix, points, round.player(), 20)
-     elif event.char == '9':
-        score(is_open, display_matrix, points, round.player(), 19)
-     elif event.char == '8':
-        score(is_open, display_matrix, points, round.player(), 18)
-     elif event.char == '7':
-        score(is_open, display_matrix, points, round.player(), 17)
-     elif event.char == '6':
-        score(is_open, display_matrix, points, round.player(), 16)
-     elif event.char == '5':
-        score(is_open, display_matrix, points, round.player(), 15)
-     elif event.char == 'b':
-        score(is_open, display_matrix, points, round.player(), 25)
-     elif event.char == ' ':
-        players[round.player()]["fg"] = "black"
-        round.nextTurn()
-        players[round.player()]["fg"] = "red"
-     elif event.char == 'q':
-        tk.quit()
-
-
-  tk.title("Quicket Scoring v0.1c")
-  for i in range(len(name)):
-    player = Tkinter.Label(text=name[i] + "  ") # added spaces
-    player.grid(row=0,column=i+1)
-    players.append(player)
-  Tkinter.Label(text="Points").grid(row=1, column=0)
+    def hasWon(self, otherScores):
+        if reduce(lambda x,y: x and y, self.closed.values()):
+           if self.points <= reduce(smaller, otherScores):
+              return True
+           else:
+              return False
 
 
-  for i in range(len(points)):
-     Tkinter.Label(textvariable=points[i]).grid(row=1,column=i+1)
+class Board(object):
+    def __init__(self, players, toClose):
+        self.players = players
+        self.currentPlayer = self.players[0]
+        self.atDart = 0
+        self.round = 1
+        self.display = dict()
+        self.savepointBuffer = list()
+        for p in players:
+          self.display[p] = dict(map(lambda k: (k, Tkinter.StringVar()), [20, 19, 18, 17, 16, 15, 'Bull']))
 
-  Tkinter.Label(text="20").grid(row=2, column=0)
-  for i in range(len(name)):
-     Tkinter.Label(textvariable=display_matrix[20][i]).grid(row=2,column=i+1)
+        self.names = dict()
+        self.points = dict()
+        j = 0
+        for p in players:
+            self.names[p]  = Tkinter.Label(text=p.name)
+            self.names[p].grid(row=0, column=j+1, padx=14)
+            self.points[p] = Tkinter.IntVar()
+            if len(players) == 2:
+               # Just reverse the point positions for a two player game
+               Tkinter.Label(textvar=self.points[p]).grid(row=1, column=1+((j+1) % 2), padx=14)
+            else:
+               Tkinter.Label(textvar=self.points[p]).grid(row=1, column=j+1, padx=14)
+               
+            j += 1
 
-  Tkinter.Label(text="19").grid(row=3, column=0)
-  for i in range(len(name)):
-     Tkinter.Label(textvariable=display_matrix[19][i]).grid(row=3,column=i+1)
-
-  Tkinter.Label(text="18").grid(row=4, column=0)
-  for i in range(len(name)):
-     Tkinter.Label(textvariable=display_matrix[18][i]).grid(row=4,column=i+1)
-
-
-  Tkinter.Label(text="17").grid(row=5, column=0)
-  for i in range(len(name)):
-     Tkinter.Label(textvariable=display_matrix[17][i]).grid(row=5,column=i+1)
-
-
-  Tkinter.Label(text="16").grid(row=6, column=0)
-  for i in range(len(name)):
-     Tkinter.Label(textvariable=display_matrix[16][i]).grid(row=6,column=i+1)
+        Tkinter.Label(master=tk, text='Name').grid(row=0, column=0, padx=14)
+        Tkinter.Label(master=tk, text='Points').grid(row=1, column=0, padx=14)
+        i = 3
+        for r in [20, 19, 18, 17, 16, 15, 'Bull']:
+            j = 0
+            Tkinter.Label(text=str(r)).grid(row=i, column=j, padx=14)
+            for c in players:
+                j += 1
+                Tkinter.Label(textvariable=self.display[c][r]).grid(row=i, column=j, padx=14)
+            i += 1
+        self.names[self.currentPlayer]['fg'] = 'red'
+        for p in self.players:
+            self.points[p].set(p.getScore())
 
 
-  Tkinter.Label(text="15").grid(row=7, column=0)
-  for i in range(len(name)):
-     Tkinter.Label(textvariable=display_matrix[15][i]).grid(row=7,column=i+1)
+    def nextPlayer(self):
+        del self.savepointBuffer[:]
+        self.atDart += 1
+        self.names[self.currentPlayer]['fg'] = 'black'
+        self.currentPlayer = self.players[self.atDart % len(self.players)]
+        self.round = (self.atDart // len(self.players) ) + 1
+        self.names[self.currentPlayer]['fg'] = 'red'
+
+    def mark(self, num):
+        self.savepointBuffer.append(map(lambda x: x.savepoint(), self.players))
+        if self.currentPlayer.mark(num):
+           map(lambda p: p.point(num), self.players)
+        if num != 25:
+           self.display[self.currentPlayer][num].set(self.currentPlayer[num])
+        else:
+           self.display[self.currentPlayer]['Bull'].set(self.currentPlayer[num])
+        for p in self.players:
+            self.points[p].set(p.getScore())
+        otherPlayers = set(self.players).difference([self.currentPlayer])
+        otherScores = map(lambda x: x.getScore(), otherPlayers)
+        
+        if self.currentPlayer.hasWon(otherScores):
+           winscreen = Tkinter.Toplevel(master=tk)
+           Tkinter.Label(master=winscreen,text='%s wins!' % (self.currentPlayer.name),
+                         fg='red').pack()
+           tk.unbind_all('<KeyPress>')
+           tk.after(6000, exit)
+
+        
+    def undo(self):
+        if len(self.savepointBuffer) == 0:
+           self.names[self.currentPlayer]['fg'] = 'black'
+           self.atDart -= 1
+           self.currentPlayer = self.players[self.atDart % len(self.players)]
+           self.round = (self.atDart // len(self.players) ) + 1
+           self.names[self.currentPlayer]['fg'] = 'red'
+        else:
+           prev = self.savepointBuffer.pop()
+           i=0;
+           while (i < len(self.players) ):
+              p = self.players[i]
+              p.rollback(prev[i][0], prev[i][1], prev[i][2])
+              i += 1
+              self.points[p].set(p.getScore())
+              self.display[p][20].set(p[20])
+              self.display[p][19].set(p[19])
+              self.display[p][18].set(p[18])
+              self.display[p][17].set(p[17])
+              self.display[p][16].set(p[16])
+              self.display[p][15].set(p[15])
+              self.display[p]['Bull'].set(p[25])
+            
 
 
-  Tkinter.Label(text="Bull").grid(row=8, column=0)
-  for i in range(len(name)):
-     Tkinter.Label(textvariable=display_matrix[25][i]).grid(row=8,column=i+1)
+name = list()
+num_players = int(raw_input("Number of Players:>"))
+toClose = int(raw_input("Number of Darts to close [1/3]>"))
+if toClose ==1:
+   tk.title("Quicket Scoring v1.0m")
+else:
+   tk.title("Cricket Scoring v2.0")
+    
+for i in range(num_players):
+  name.append(raw_input("Player %d name:" % (i + 1) ))
+players = map(lambda n: Player(n, toClose), name)
+board = Board(players, 3)
 
-  tk.bind_all('<KeyPress>', onKeyPress)
-  players[0]["fg"] = "red"
-  tk.mainloop()
+
+def onKeyPress(event):
+    if event.keysym == 'space':
+       board.nextPlayer()
+    elif event.keysym == '2':
+       board.mark(20)
+    elif event.keysym == '9':
+       board.mark(19)
+    elif event.keysym == '8':
+       board.mark(18)
+    elif event.keysym == '7':
+       board.mark(17)
+    elif event.keysym == '6':
+       board.mark(16)
+    elif event.keysym == '5':
+       board.mark(15)
+    elif event.keysym == 'b':
+       board.mark(25)
+    elif event.keysym == 'z':
+       board.undo()
+    elif event.keysym == 'q':
+       exit()
+    else:
+       print 'huh?'
+
+
+
+
+tk.bind_all('<KeyPress>', onKeyPress)
+
+
+tk.mainloop()
+
+
+
