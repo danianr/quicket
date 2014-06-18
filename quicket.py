@@ -1,4 +1,3 @@
-from copy import deepcopy
 import Tkinter
 
 tk = Tkinter.Tk()
@@ -44,27 +43,20 @@ class Player(object):
     def point(self, num):
         if not self.closed[num]:
            self.points += num
+           return True
+        else:
+           return False
 
     def savepoint(self):
-        closed = map(lambda n: self.closed[n], [ 20, 19, 18, 17, 16, 15, 25])
-        remaining = map(lambda n: self.remaining[n], [ 20, 19, 18, 17, 16, 15, 25])
+        closed = map(lambda n: (n, self.closed[n]), [ 20, 19, 18, 17, 16, 15, 25])
+        remaining = map(lambda n: (n, self.remaining[n]), [ 20, 19, 18, 17, 16, 15, 25])
         return (closed, remaining, self.points)
 
     def rollback(self, closed, remaining, points):
-        self.closed[20] = closed[0]
-        self.closed[19] = closed[1]
-        self.closed[18] = closed[2]
-        self.closed[17] = closed[3]
-        self.closed[16] = closed[4]
-        self.closed[15] = closed[5]
-        self.closed[25] = closed[6]
-        self.remaining[20] = remaining[0]
-        self.remaining[19] = remaining[1]
-        self.remaining[18] = remaining[2]
-        self.remaining[17] = remaining[3]
-        self.remaining[16] = remaining[4]
-        self.remaining[15] = remaining[5]
-        self.remaining[25] = remaining[6]
+        for (n, b) in closed:
+           self.closed[n] = b
+        for (n, r) in remaining:
+           self.remaining[n] = r
         self.points = points
 
     def getScore(self):
@@ -88,6 +80,9 @@ class Board(object):
         self.savepointBuffer = list()
         for p in players:
           self.display[p] = dict(map(lambda k: (k, Tkinter.StringVar()), [20, 19, 18, 17, 16, 15, 'Bull']))
+        self.marks = dict(map(lambda p: (p, 0), self.players))
+        self.mpr = dict(map(lambda p: (p, Tkinter.DoubleVar()), self.players))
+
 
         self.names = dict()
         self.points = dict()
@@ -114,12 +109,18 @@ class Board(object):
                 j += 1
                 Tkinter.Label(textvariable=self.display[c][r]).grid(row=i, column=j, padx=14)
             i += 1
+        j = 1
+        for p in self.players:
+           Tkinter.Label(textvariable=self.mpr[p]).grid(row=i+1, column=j)
+           j += 1
         self.names[self.currentPlayer]['fg'] = 'red'
         for p in self.players:
             self.points[p].set(p.getScore())
 
 
     def nextPlayer(self):
+        mpr =float('%.3f' % (self.marks[self.currentPlayer] / (self.round + 0.0)))
+        self.mpr[self.currentPlayer].set(mpr)
         del self.savepointBuffer[:]
         self.atDart += 1
         self.names[self.currentPlayer]['fg'] = 'black'
@@ -127,18 +128,26 @@ class Board(object):
         self.round = (self.atDart // len(self.players) ) + 1
         self.names[self.currentPlayer]['fg'] = 'red'
 
+
     def mark(self, num):
         self.savepointBuffer.append(map(lambda x: x.savepoint(), self.players))
+        otherPlayers = set(self.players).difference([self.currentPlayer])
         if self.currentPlayer.mark(num):
-           map(lambda p: p.point(num), self.players)
+           if reduce(lambda x,y: x and y, map(lambda p: p.point(num), otherPlayers)):
+              self.marks[self.currentPlayer] += 1
+        else:
+           self.marks[self.currentPlayer] += 1
         if num != 25:
            self.display[self.currentPlayer][num].set(self.currentPlayer[num])
         else:
            self.display[self.currentPlayer]['Bull'].set(self.currentPlayer[num])
         for p in self.players:
             self.points[p].set(p.getScore())
-        otherPlayers = set(self.players).difference([self.currentPlayer])
         otherScores = map(lambda x: x.getScore(), otherPlayers)
+
+        # Truncate the floating point by converting the strfmt to a float
+        mpr =float('%.3f' % (self.marks[self.currentPlayer] / (self.round + 0.0)))
+        self.mpr[self.currentPlayer].set(mpr)
         
         if self.currentPlayer.hasWon(otherScores):
            winscreen = Tkinter.Toplevel(master=tk)
@@ -157,6 +166,8 @@ class Board(object):
            self.names[self.currentPlayer]['fg'] = 'red'
         else:
            prev = self.savepointBuffer.pop()
+           if prev != self.savepointBuffer[-1]:
+              self.marks[self.currentPlayer] -= 1
            i=0;
            while (i < len(self.players) ):
               p = self.players[i]
@@ -171,6 +182,7 @@ class Board(object):
               self.display[p][15].set(p[15])
               self.display[p]['Bull'].set(p[25])
             
+           self.mpr[self.currentPlayer].set(self.marks[self.currentPlayer] / (self.round + 0.0))
 
 
 name = list()
@@ -179,7 +191,7 @@ toClose = int(raw_input("Number of Darts to close [1/3]>"))
 if toClose ==1:
    tk.title("Quicket Scoring v1.0m")
 else:
-   tk.title("Cricket Scoring v2.0")
+   tk.title("Cricket Scoring v2.1")
     
 for i in range(num_players):
   name.append(raw_input("Player %d name:" % (i + 1) ))
