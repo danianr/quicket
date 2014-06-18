@@ -10,6 +10,28 @@ tk.option_add("*Background", "white")
 tk.config(background="white")
 
 
+
+def color(fg, opacity):
+    if fg == 'black':
+       r = 0
+       g = 0
+       b = 0
+    else:
+       r = int(fg[1:3], 16)
+       g = int(fg[3:5], 16)
+       b = int(fg[5:7], 16)
+
+    rAdj = ( 255 - r ) * (1 - opacity)
+    gAdj = ( 255 - g ) * (1 - opacity)
+    bAdj = ( 255 - b ) * (1 - opacity)
+   
+    r += rAdj 
+    g += gAdj 
+    b += bAdj 
+    
+    return '#%.2x%.2x%.2x' % (r, g, b)
+
+
 # helper function for reduce
 def smaller(a, b):
     if ( a > b):
@@ -81,8 +103,8 @@ class Board(object):
         for p in players:
           self.display[p] = dict(map(lambda k: (k, Tkinter.StringVar()), [20, 19, 18, 17, 16, 15, 'Bull']))
         self.marks = dict(map(lambda p: (p, 0), self.players))
-        self.mpr = dict(map(lambda p: (p, Tkinter.DoubleVar()), self.players))
-
+        self.mpr = dict(map(lambda p: (p, Tkinter.DoubleVar()), self.players)) 
+        self.mprDisp = dict()
 
         self.names = dict()
         self.points = dict()
@@ -111,16 +133,30 @@ class Board(object):
             i += 1
         j = 1
         for p in self.players:
-           Tkinter.Label(textvariable=self.mpr[p]).grid(row=i+1, column=j)
+           self.mprDisp[p] = Tkinter.Label(textvariable=self.mpr[p])
+           self.mprDisp[p].grid(row=i+1, column=j)
            j += 1
         self.names[self.currentPlayer]['fg'] = 'red'
         for p in self.players:
             self.points[p].set(p.getScore())
 
 
-    def nextPlayer(self):
+    def mprCalc(self):
         mpr =float('%.3f' % (self.marks[self.currentPlayer] / (self.round + 0.0)))
         self.mpr[self.currentPlayer].set(mpr)
+        if mpr < 1:
+           self.mprDisp[self.currentPlayer]['fg'] = color('black', mpr)
+        elif mpr >= 4:
+           self.mprDisp[self.currentPlayer]['fg'] = 'gold'
+        elif mpr >= 3:
+           self.mprDisp[self.currentPlayer]['fg'] = 'blue'
+        else:
+           self.mprDisp[self.currentPlayer]['fg'] = 'black'
+
+
+
+    def nextPlayer(self):
+        self.mprCalc()
         del self.savepointBuffer[:]
         self.atDart += 1
         self.names[self.currentPlayer]['fg'] = 'black'
@@ -133,7 +169,7 @@ class Board(object):
         self.savepointBuffer.append(map(lambda x: x.savepoint(), self.players))
         otherPlayers = set(self.players).difference([self.currentPlayer])
         if self.currentPlayer.mark(num):
-           if reduce(lambda x,y: x and y, map(lambda p: p.point(num), otherPlayers)):
+           if reduce(lambda x,y: x or y, map(lambda p: p.point(num), otherPlayers)):
               self.marks[self.currentPlayer] += 1
         else:
            self.marks[self.currentPlayer] += 1
@@ -145,9 +181,7 @@ class Board(object):
             self.points[p].set(p.getScore())
         otherScores = map(lambda x: x.getScore(), otherPlayers)
 
-        # Truncate the floating point by converting the strfmt to a float
-        mpr =float('%.3f' % (self.marks[self.currentPlayer] / (self.round + 0.0)))
-        self.mpr[self.currentPlayer].set(mpr)
+        self.mprCalc()
         
         if self.currentPlayer.hasWon(otherScores):
            winscreen = Tkinter.Toplevel(master=tk)
@@ -181,8 +215,8 @@ class Board(object):
               self.display[p][16].set(p[16])
               self.display[p][15].set(p[15])
               self.display[p]['Bull'].set(p[25])
-            
-           self.mpr[self.currentPlayer].set(self.marks[self.currentPlayer] / (self.round + 0.0))
+ 
+           self.mprCalc()
 
 
 name = list()
