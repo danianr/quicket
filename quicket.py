@@ -11,24 +11,29 @@ tk.config(background="white")
 
 
 
-def color(fg, opacity):
-    if fg == 'black':
-       r = 0
-       g = 0
-       b = 0
-    else:
-       r = int(fg[1:3], 16)
-       g = int(fg[3:5], 16)
-       b = int(fg[5:7], 16)
+def color(mpr):
 
-    rAdj = ( 255 - r ) * (1 - opacity)
-    gAdj = ( 255 - g ) * (1 - opacity)
-    bAdj = ( 255 - b ) * (1 - opacity)
-   
-    r += rAdj 
-    g += gAdj 
-    b += bAdj 
-    
+    if mpr < 1:
+       r =  int(255 * mpr ** 2)
+       g =  int(255 * mpr ** 2)
+       b =  int(255 * mpr ** 2)
+    elif mpr >= 4:
+       r = 192
+       g = 192
+       b = 0
+    elif mpr >= 3:
+       g = 192
+       r = int(192 * (mpr - 3) ** 2)
+       b = 127 - r / 2
+    elif mpr >= 2:
+       b = 127
+       g = int(127 * (mpr - 2) ** 2)
+       r = 0
+    else:
+       b = int(127 * (mpr - 1 ) ** 2)
+       g = 0
+       r = 0
+
     return '#%.2x%.2x%.2x' % (r, g, b)
 
 
@@ -144,14 +149,7 @@ class Board(object):
     def mprCalc(self):
         mpr =float('%.3f' % (self.marks[self.currentPlayer] / (self.round + 0.0)))
         self.mpr[self.currentPlayer].set(mpr)
-        if mpr < 1:
-           self.mprDisp[self.currentPlayer]['fg'] = color('black', mpr)
-        elif mpr >= 4:
-           self.mprDisp[self.currentPlayer]['fg'] = 'gold'
-        elif mpr >= 3:
-           self.mprDisp[self.currentPlayer]['fg'] = 'blue'
-        else:
-           self.mprDisp[self.currentPlayer]['fg'] = 'black'
+        self.mprDisp[self.currentPlayer]['fg'] = color(mpr)
 
 
 
