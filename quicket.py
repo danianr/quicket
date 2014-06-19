@@ -14,9 +14,9 @@ tk.config(background="white")
 def color(mpr):
 
     if mpr < 1:
-       r =  int(255 * mpr ** 2)
-       g =  int(255 * mpr ** 2)
-       b =  int(255 * mpr ** 2)
+       r =  255 - int(255 * mpr ** 2)
+       g = r
+       b = r
     elif mpr >= 4:
        r = 192
        g = 192
@@ -24,13 +24,13 @@ def color(mpr):
     elif mpr >= 3:
        g = 192
        r = int(192 * (mpr - 3) ** 2)
-       b = 127 - r / 2
+       b = 127 -  int(r / 2.5)
     elif mpr >= 2:
-       b = 127
-       g = int(127 * (mpr - 2) ** 2)
+       g = int(192 * (mpr - 2) ** 2)
+       b = 192 - int(g / 2)
        r = 0
     else:
-       b = int(127 * (mpr - 1 ) ** 2)
+       b = int(192 * (mpr - 1 ) ** 2)
        g = 0
        r = 0
 
