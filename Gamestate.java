@@ -106,6 +106,12 @@ public class Gamestate{
     }
 
 
+    public void startGame(){
+       if (players.size() < 2) return;
+       rankPlayers();
+       nextRound();
+    }
+
     public boolean canPoint(Dart.CricketNumber cn){
        for (Player player: players){
           if (player != currentPlayer && !player.isClosed(cn)) return true;
@@ -169,6 +175,7 @@ public class Gamestate{
        if (player == currentPlayer){
           hasWinner = true;
        }else{
+          currentPlayer = player;
           round++;
        }
     }
