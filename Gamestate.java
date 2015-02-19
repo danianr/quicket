@@ -227,15 +227,21 @@ public class Gamestate{
        }
 
        if (canPoint(cn)){
-           int multiplier = modifier.getMultiplier() - currentPlayer.neededToClose(cn);
+           effectiveMarks = modifier.getMultiplier();
+           competitiveMarks = effectiveMarks;
+           int multiplier = effectiveMarks - currentPlayer.neededToClose(cn);
            assignPoints(cn, multiplier);
-           currentPlayer.recordDart(new Dart(cn, modifier, modifier.getMultiplier(), modifier.getMultiplier()) );
+           if ( leadPlace.isClosed(cn) && secondPlace.isClosed(cn) ){
+              competitiveMarks = (currentPlayer.neededToClose(cn) < effectiveMarks)?
+                                               currentPlayer.neededToClose(cn) : effectiveMarks;
+           }
+           currentPlayer.recordDart(new Dart(cn, modifier, effectiveMarks, competitiveMarks) );
        }else if(currentPlayer.isClosed(cn) ){
            currentPlayer.recordDart(new Dart(Dart.CricketNumber.MISS, Dart.Modifier.NONE, 0, 0));
        }else{
-           int usefulMarks = (currentPlayer.neededToClose(cn) < modifier.getMultiplier())?
+           effectiveMarks = (currentPlayer.neededToClose(cn) < modifier.getMultiplier())?
                                                      currentPlayer.neededToClose(cn) : modifier.getMultiplier();
-           currentPlayer.recordDart(new Dart(cn, modifier, usefulMarks, usefulMarks) );
+           currentPlayer.recordDart(new Dart(cn, modifier, effectiveMarks, effectiveMarks) );
        }
        checkForEliminated();
     }
