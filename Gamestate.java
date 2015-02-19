@@ -21,6 +21,7 @@ public class Gamestate{
             this.name = name;
             this.eliminated = false;
             this.mpd = 0;
+            this.journal = new Vector<Dart>(60);
             this.toClose = new HashMap<Dart.CricketNumber, Integer>(7);
             this.toClose.put(Dart.CricketNumber.TWENTY,    new Integer(marksToClose));
             this.toClose.put(Dart.CricketNumber.NINETEEN,  new Integer(marksToClose));
@@ -233,7 +234,9 @@ public class Gamestate{
          default:  cn = Dart.CricketNumber.MISS;
        }
 
-       if (canPoint(cn)){
+       if (cn == Dart.CricketNumber.MISS){
+           currentPlayer.recordDart(new Dart(Dart.CricketNumber.MISS, Dart.Modifier.NONE, 0, 0));
+       }else if (canPoint(cn)){
            effectiveMarks = modifier.getMultiplier();
            competitiveMarks = effectiveMarks;
            int multiplier = effectiveMarks - currentPlayer.neededToClose(cn);
