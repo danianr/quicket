@@ -4,7 +4,7 @@ package quicket;
 public class Dart{
 
    public enum CricketNumber {
-       MISS       (0), FIFTEEN   (15), SIXTEEN   (16), SEVETEEN  (17),
+       MISS       (0), FIFTEEN   (15), SIXTEEN   (16), SEVENTEEN (17),
        EIGHTEEN  (18), NINETEEN  (19), TWENTY    (20), BULL      (25);
 
        private final int points;
@@ -13,12 +13,22 @@ public class Dart{
            this.points = points;
        }
 
-       private int singlePoints() { return points; }
-       private int doublePoints() { return 2 * points; }
-       private int triplePoints() { return (points == 25)? 0 : 3 * points; }
+       public int getPointValue() { return points; }
    }
 
-   public enum Modifier { NONE, DOUBLE, TRIPLE }
+   public enum Modifier {
+       NONE (1), DOUBLE (2),  TRIPLE (3);
+
+       private final int multiplier;
+
+       Modifier(int multiplier){
+          this.multiplier = multiplier;
+       }
+
+       public int getMultiplier(){
+          return multiplier;
+       }
+   }
 
    private final CricketNumber number;
    private final Modifier modifier;
@@ -35,15 +45,6 @@ public class Dart{
    public CricketNumber getNumber() { return number; }
 
    public Modifier getModifier() { return modifier; }
-
-   public int getPoints() {
-      switch (modifier){
-          case NONE:   return number.singlePoints();
-          case DOUBLE: return number.doublePoints();
-          case TRIPLE: return number.triplePoints();
-      }
-      return 0;
-   }
 
    public int getMarks() { return marks; }
 
