@@ -5,7 +5,7 @@ import java.awt.font.FontRenderContext;
 import java.awt.geom.Rectangle2D;
 import javax.swing.*;
 import javax.swing.event.*;
-import quicket.BoardNumbers;
+import quicket.Board;
 import java.lang.Thread;
 import quicket.MouseAdapter;
 
