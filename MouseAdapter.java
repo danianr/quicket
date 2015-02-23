@@ -23,8 +23,10 @@ public class MouseAdapter extends java.awt.event.MouseAdapter {
       try{
         System.out.println("  x:" + e.getX() + "   y:" + e.getY() + "  Number:" + board.getNumber(e.getX(), e.getY()));
         if (board.isDoubleRing(e.getX(), e.getY())){
+           System.out.println("Double " + board.getNumber(e.getX(), e.getY()) );
            gamestate.scoreDart(board.getNumber(e.getX(), e.getY()), 2);
         }else if (board.isTripleRing(e.getX(), e.getY())){
+           System.out.println("Triple  " + board.getNumber(e.getX(), e.getY()) );
            gamestate.scoreDart(board.getNumber(e.getX(), e.getY()), 3);
         }else{
            gamestate.scoreDart(board.getNumber(e.getX(), e.getY()), 1);

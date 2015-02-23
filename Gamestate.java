@@ -6,8 +6,11 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Vector;
+import javax.swing.table.TableModel;
+import javax.swing.event.TableModelEvent;
+import javax.swing.event.TableModelListener;
 
-public class Gamestate{
+public class Gamestate implements TableModel{
 
     private class Player{
         private final String name;
@@ -15,12 +18,14 @@ public class Gamestate{
         private Vector<Dart> journal;
         private Map<Dart.CricketNumber, Integer> toClose;
         private boolean eliminated;
-        private double mpd;
+        private double cumulativeMarks;
+        private double cumulativeCompetetiveMarks;
 
         public Player(String name){
             this.name = name;
             this.eliminated = false;
-            this.mpd = 0;
+            this.cumulativeMarks  = 0;
+            this.cumulativeCompetetiveMarks = 0;
             this.journal = new Vector<Dart>(60);
             this.toClose = new HashMap<Dart.CricketNumber, Integer>(7);
             this.toClose.put(Dart.CricketNumber.TWENTY,    new Integer(marksToClose));
@@ -54,15 +59,14 @@ public class Gamestate{
 
         public void recordDart(Dart dart){
            journal.add(dart);
-           if (dart.getNumber() == Dart.CricketNumber.MISS){
-               mpd *= (journal.size() - 1) / journal.size();
-           }else{
+           if (dart.getNumber() != Dart.CricketNumber.MISS){
               if (toClose.get(dart.getNumber()) > dart.getMarks()){
                   toClose.put(dart.getNumber(), toClose.get(dart.getNumber()) - dart.getMarks());
               }else{
                  toClose.put(dart.getNumber(), new Integer(0));
               }
-              mpd = (dart.getMarks() + mpd * (journal.size() - 1)) / journal.size();
+              cumulativeMarks             += dart.getMarks();
+              cumulativeCompetetiveMarks  += dart.getCompetetiveMarks();
            }
         }
              
@@ -76,7 +80,13 @@ public class Gamestate{
         }
 
         public float getMpr(){
-            return (float) (mpd / 3.0);
+            if (journal.size() == 0) return Float.NaN;
+            return (float) (cumulativeMarks / (journal.size() / 3.0) );
+        }
+
+        public float getCmpr(){
+            if (journal.size() == 0) return Float.NaN;
+            return (float) (cumulativeCompetetiveMarks / (journal.size() / 3.0) );
         }
     }
 
@@ -89,6 +99,7 @@ public class Gamestate{
     private Map<Player, Integer> scores;
     private Player leadPlace;
     private Player secondPlace;
+    private Vector<TableModelListener> tableModelListeners;
 
     public Gamestate(){
        round = 0;
@@ -96,6 +107,8 @@ public class Gamestate{
        hasWinner = false;
        players = new ArrayList<Player>(6);
        scores  = new HashMap<Player, Integer>(6);
+       tableModelListeners = new Vector<TableModelListener>(3);
+       
        leadPlace = null;
        secondPlace = null;
     }
@@ -184,11 +197,11 @@ public class Gamestate{
 
     public void nextPlayer(){
        Player player;
+       currentThrow = 0;
        if (!playerIterator.hasNext()){
           nextRound();
           return;
        }
-
        player = playerIterator.next();
        while(player.isEliminated() && playerIterator.hasNext()){
           player = playerIterator.next();
@@ -196,6 +209,8 @@ public class Gamestate{
 
        if (player.isEliminated()){
           nextRound();
+       }else{
+          currentPlayer = player;
        }
        return;
     }
@@ -206,6 +221,7 @@ public class Gamestate{
        Dart.Modifier modifier;
        int     effectiveMarks;
        int     competitiveMarks;
+
 
        switch(mod){
          case 3:  modifier = Dart.Modifier.TRIPLE;
@@ -240,7 +256,7 @@ public class Gamestate{
            effectiveMarks = modifier.getMultiplier();
            competitiveMarks = effectiveMarks;
            int multiplier = effectiveMarks - currentPlayer.neededToClose(cn);
-           assignPoints(cn, multiplier);
+           if (multiplier > 0) assignPoints(cn, multiplier);
            if ( leadPlace.isClosed(cn) && secondPlace.isClosed(cn) ){
               competitiveMarks = (currentPlayer.neededToClose(cn) < effectiveMarks)?
                                                currentPlayer.neededToClose(cn) : effectiveMarks;
@@ -254,6 +270,80 @@ public class Gamestate{
            currentPlayer.recordDart(new Dart(cn, modifier, effectiveMarks, effectiveMarks) );
        }
        checkForEliminated();
+
+       if (++currentThrow % 3 == 0){
+           nextPlayer();
+       }
+
+       for (TableModelListener l: tableModelListeners){
+           l.tableChanged(new TableModelEvent(this));
+       }
     }
 
+    // TableModel interface methods
+    public void addTableModelListener(TableModelListener l){
+       tableModelListeners.add(l);
+    }
+
+    public Class<?> getColumnClass(int columnIndex){
+        return String.class;
+    }
+
+    public int getColumnCount(){
+        return ( players.size() + 1 );
+    }
+
+    public String getColumnName(int columnIndex){
+        if ( columnIndex == 0){
+           return "";
+        }else{
+           return players.get(columnIndex - 1).getName();
+        }
+    }
+
+    public int getRowCount(){
+        return 11;
+    }
+
+    public Object getValueAt(int rowIndex, int columnIndex){
+        final String firstTab[] = { "Player", "20", "19", "18", "17", "16", "15", "Bull", "MPR", "CMPR", "Points" };
+        final String glyph[] = { "0", "X", "/", "" };
+
+        if (columnIndex == 0){
+           return firstTab[rowIndex];
+        }else{
+           Player p = players.get(columnIndex - 1);
+           switch (rowIndex){
+              case 0:  return p.getName();
+              case 1:  return glyph[p.neededToClose(Dart.CricketNumber.TWENTY)];
+              case 2:  return glyph[p.neededToClose(Dart.CricketNumber.NINETEEN)];
+              case 3:  return glyph[p.neededToClose(Dart.CricketNumber.EIGHTEEN)];
+              case 4:  return glyph[p.neededToClose(Dart.CricketNumber.SEVENTEEN)];
+              case 5:  return glyph[p.neededToClose(Dart.CricketNumber.SIXTEEN)];
+              case 6:  return glyph[p.neededToClose(Dart.CricketNumber.FIFTEEN)];
+              case 7:  return glyph[p.neededToClose(Dart.CricketNumber.BULL)];
+              case 8:  return p.getMpr();
+              case 9:  return p.getCmpr();
+              case 10: return scores.get(p).toString();
+              default: System.out.println("Bad access row:" + rowIndex + " columnIndex:" + columnIndex);
+           }
+         }
+         return null;
+    }
+
+
+
+    // table is display-only
+    public boolean  isCellEditable(int rowIndex, int columnIndex){
+        return false;
+    }
+
+    public void removeTableModelListener(TableModelListener l){
+        tableModelListeners.remove(l);
+    }
+
+    // not implemented for a read-only table
+    public void setValueAt(Object aValue, int rowIndex, int columIndex){
+        return;
+    }
 }

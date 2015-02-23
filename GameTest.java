@@ -22,8 +22,10 @@ public class GameTest{
 
    private static void createAndShowGUI() {
       JFrame frame = new JFrame("Quicket v3.0");
+      JTable scoreboard = new JTable(gamestate);
+      frame.getContentPane().add(scoreboard, BorderLayout.EAST);
+      frame.getContentPane().add(board, BorderLayout.WEST);
       frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-      frame.getContentPane().add(board);
       board.addMouseListener(mouse);
       frame.pack();
       frame.setVisible(true);

@@ -12,7 +12,8 @@ import quicket.MouseAdapter;
 public class BoardTest {
 
    private static Board board = new Board(500, Color.black, Color.red, Color.white, Color.green);
-   private static MouseAdapter mouse = new quicket.MouseAdapter(board);
+   private static Gamestate game = new Gamestate();
+   private static MouseAdapter mouse = new quicket.MouseAdapter(board, game);
 
    private static void createAndShowGUI() {
       JFrame frame = new JFrame("Quicket v3.0");
