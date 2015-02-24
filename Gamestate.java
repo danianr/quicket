@@ -16,6 +16,7 @@ public class Gamestate implements TableModel{
         private final String name;
         private final int marksToClose = 3;
         private Vector<Dart> journal;
+        private Vector<Integer> undoHelper;
         private Map<Dart.CricketNumber, Integer> toClose;
         private boolean eliminated;
         private double cumulativeMarks;
@@ -26,8 +27,9 @@ public class Gamestate implements TableModel{
             this.eliminated = false;
             this.cumulativeMarks  = 0;
             this.cumulativeCompetetiveMarks = 0;
-            this.journal = new Vector<Dart>(60);
-            this.toClose = new HashMap<Dart.CricketNumber, Integer>(7);
+            this.journal    = new Vector<Dart>(60);
+            this.undoHelper = new Vector<Integer>(60);
+            this.toClose    = new HashMap<Dart.CricketNumber, Integer>(7);
             this.toClose.put(Dart.CricketNumber.TWENTY,    new Integer(marksToClose));
             this.toClose.put(Dart.CricketNumber.NINETEEN,  new Integer(marksToClose));
             this.toClose.put(Dart.CricketNumber.EIGHTEEN,  new Integer(marksToClose));
@@ -58,6 +60,7 @@ public class Gamestate implements TableModel{
         }
 
         public void recordDart(Dart dart){
+	   undoHelper.add(toClose.get(dart.getNumber()));
            journal.add(dart);
            if (dart.getNumber() != Dart.CricketNumber.MISS){
               if (toClose.get(dart.getNumber()) > dart.getMarks()){
@@ -78,6 +81,25 @@ public class Gamestate implements TableModel{
         public boolean isEliminated(){
             return eliminated;
         }
+
+
+        // remove last dart from the journal, correcting cumluative totals
+	// and return a tuple of the Dart removed and the amount of marks
+	// applied to pointing
+	public Map.Entry<Dart, Integer> rollbackDart(){
+	    final Map<Dart, Integer> ret = new HashMap<Dart, Integer>(1, 1.0f);
+	    Dart removed = journal.remove(journal.size() - 1);
+	    Integer prevToClose = undoHelper.remove(undoHelper.size() - 1);
+
+            toClose.put(removed.getNumber(), prevToClose);
+            cumulativeMarks -= removed.getMarks();
+	    cumulativeCompetetiveMarks -= removed.getCompetetiveMarks();
+            int pointingMarks = removed.getMarks() - prevToClose;
+            ret.put(removed, new Integer((pointingMarks < 1)? 0 : pointingMarks));
+
+	    return ret.entrySet().iterator().next();
+	}
+
 
         public float getMpr(){
             if (journal.size() == 0) return Float.NaN;
@@ -141,6 +163,32 @@ public class Gamestate implements TableModel{
           }
        }
     }
+
+    public void undo(){
+       if (currentThrow == 0){
+          //case for turn rollback
+	  int np = players.indexOf(currentPlayer);
+	  currentThrow = 3;
+	  if (np == 0){
+	    round--;
+	    currentPlayer = players.get(players.size() - 1);
+          }else{
+	    currentPlayer = players.get(np - 1);
+	  }
+       }
+
+Map.Entry<Dart, Integer> removed = currentPlayer.rollbackDart();
+       if (!removed.getValue().equals(0)){
+	  for (Player p: players){
+	     if (p != currentPlayer){
+		scores.put(p, scores.get(p) - (removed.getKey().getNumber().getPointValue() * removed.getValue()));
+		p.setEliminated(false);
+             }
+	  }
+       }
+       currentThrow--;
+       checkForEliminated();
+   }
 
 
     public void rankPlayers(){
