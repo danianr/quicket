@@ -117,7 +117,6 @@ public class Gamestate implements TableModel{
     private int currentThrow;
     private boolean hasWinner;
     private ArrayList<Player> players;
-    private Iterator<Player> playerIterator;
     private Map<Player, Integer> scores;
     private Player leadPlace;
     private Player secondPlace;
@@ -228,7 +227,7 @@ Map.Entry<Dart, Integer> removed = currentPlayer.rollbackDart();
               
 
     public void nextRound(){
-       playerIterator = players.iterator();
+       Iterator<Player> playerIterator = players.iterator();
        Player player = null;
        while (playerIterator.hasNext()){
           player =  playerIterator.next();
@@ -245,22 +244,28 @@ Map.Entry<Dart, Integer> removed = currentPlayer.rollbackDart();
 
     public void nextPlayer(){
        Player player;
+       int np = players.indexOf(currentPlayer);
+
        currentThrow = 0;
-       if (!playerIterator.hasNext()){
+       if (np == (players.size() - 1)){
           nextRound();
           return;
        }
-       player = playerIterator.next();
-       while(player.isEliminated() && playerIterator.hasNext()){
-          player = playerIterator.next();
-       }
 
-       if (player.isEliminated()){
-          nextRound();
-       }else{
-          currentPlayer = player;
-       }
-       return;
+       // avoid using an Iterator so we can undo
+       // into a previous turn without skipping
+       // over a player
+       do {
+         np++;
+	 if (np < players.size()){
+	    player = players.get(np);
+	 }else{
+	    nextRound();
+	    return;
+	 }
+       } while ( player.isEliminated() );
+
+       currentPlayer = player;
     }
         
 
